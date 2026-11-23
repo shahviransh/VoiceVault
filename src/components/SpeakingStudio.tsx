@@ -2,17 +2,37 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Building2,
   Download,
   EyeOff,
   Mic,
   MessageSquareQuote,
   Shuffle,
+  Sparkles,
   Square,
   Timer,
   Volume2,
 } from "lucide-react";
-import type { AppSettings, CalibratedScorecard, LiveCheckpoint } from "@/lib/ai/types";
-import { buildTelemetry, evaluateLiveCheckpoints, evaluateResponse } from "@/lib/ai/providers";
+import {
+  companySignalPrompts,
+  generateMockQuestions,
+} from "@/lib/ai/coach";
+import { INTERVIEW_TYPES } from "@/lib/ai/interview-types";
+import type {
+  AppSettings,
+  BridgeCompare,
+  CalibratedScorecard,
+  GeneratedQuestion,
+  InterviewType,
+  LiveCheckpoint,
+  SessionAttempt,
+} from "@/lib/ai/types";
+import {
+  buildTelemetry,
+  evaluateLiveCheckpoints,
+  evaluateResponse,
+  telemetryToSpeech,
+} from "@/lib/ai/providers";
 import type { DeliveryTelemetry } from "@/lib/ai/heuristics";
 import {
   browserRag,
@@ -27,22 +47,36 @@ import { LiveTranscriber, LocalAudioRecorder, speakAsInterviewer } from "@/lib/s
 import { PaceTracker, countFillers } from "@/lib/speech/telemetry";
 import { cn, downloadTextFile } from "@/lib/utils";
 import { Scorecard } from "./Scorecard";
+import { SessionCoachPanel } from "./SessionCoachPanel";
 import { LiveWaveform } from "./ui/LiveWaveform";
-import { Card, PageHeader } from "./ui/primitives";
+import { Card, PageHeader, Segmented } from "./ui/primitives";
 
 const FALLBACK_QUESTION = "Tell me about a time you owned a high-impact technical decision.";
 
 export function SpeakingStudio({
   documents,
   settings,
+  bridgeSeed,
+  onBridgeComplete,
 }: {
   documents: DocumentRecord[];
   settings: AppSettings;
+  bridgeSeed?: {
+    prompt: string;
+    writingCard: CalibratedScorecard;
+  } | null;
+  onBridgeComplete?: () => void;
 }) {
   const prepDocs = documents.filter((d) => d.doc_type === "career_ops_prep");
   const [prepId, setPrepId] = useState<string>("");
   const [prepMeta, setPrepMeta] = useState<PrepMetadata | null>(null);
+  const [interviewType, setInterviewType] = useState<InterviewType>(
+    settings.defaultInterviewType ?? "behavioral",
+  );
+  const [companyDrill, setCompanyDrill] = useState(false);
   const [question, setQuestion] = useState(FALLBACK_QUESTION);
+  const [generated, setGenerated] = useState<GeneratedQuestion[]>([]);
+  const [genBusy, setGenBusy] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [recording, setRecording] = useState(false);
   const [scoring, setScoring] = useState(false);
@@ -57,6 +91,8 @@ export function SpeakingStudio({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [attempts, setAttempts] = useState<SessionAttempt[]>([]);
+  const [bridgeCompare, setBridgeCompare] = useState<BridgeCompare | null>(null);
 
   const transcriber = useRef(new LiveTranscriber());
   const recorder = useRef(new LocalAudioRecorder());
@@ -67,6 +103,13 @@ export function SpeakingStudio({
   useEffect(() => {
     if (!prepId && prepDocs[0]) setPrepId(prepDocs[0].id);
   }, [prepDocs, prepId]);
+
+  useEffect(() => {
+    if (bridgeSeed?.prompt) {
+      setQuestion(bridgeSeed.prompt);
+      setStatus("Writing → Speaking bridge — retell your draft out loud");
+    }
+  }, [bridgeSeed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,7 +124,7 @@ export function SpeakingStudio({
           : await browserRag.getPrepMetadata(prepId);
         if (!cancelled) {
           setPrepMeta(meta);
-          if (meta?.questions?.[0]) setQuestion(meta.questions[0]);
+          if (!bridgeSeed && meta?.questions?.[0]) setQuestion(meta.questions[0]);
         }
       } catch {
         if (!cancelled) setPrepMeta(null);
@@ -90,7 +133,7 @@ export function SpeakingStudio({
     return () => {
       cancelled = true;
     };
-  }, [prepId]);
+  }, [prepId, bridgeSeed]);
 
   useEffect(() => {
     if (!recording) return;
@@ -108,7 +151,11 @@ export function SpeakingStudio({
     [],
   );
 
-  const questions = useMemo(() => prepMeta?.questions ?? [], [prepMeta]);
+  const questions = useMemo(() => {
+    if (companyDrill) return companySignalPrompts(prepMeta);
+    if (generated.length) return generated.map((g) => g.text);
+    return prepMeta?.questions ?? [];
+  }, [prepMeta, companyDrill, generated]);
 
   const shuffleQuestion = () => {
     if (!questions.length) {
@@ -116,6 +163,33 @@ export function SpeakingStudio({
       return;
     }
     setQuestion(questions[Math.floor(Math.random() * questions.length)]);
+  };
+
+  const generateQuestions = async () => {
+    setGenBusy(true);
+    setStatus("Generating personal mock set…");
+    try {
+      const ctx = await retrieveSafe(
+        prepMeta?.target_keywords?.join(" ") || "interview experience ownership impact",
+        prepId || null,
+        10,
+      );
+      const qs = await generateMockQuestions(
+        ctx.chunks,
+        ctx.prep_signals ?? prepMeta,
+        settings,
+        interviewType,
+        6,
+      );
+      setGenerated(qs);
+      if (qs[0]) setQuestion(qs[0].text);
+      setCompanyDrill(false);
+      setStatus(`Generated ${qs.length} questions`);
+    } catch (e) {
+      setStatus(String(e));
+    } finally {
+      setGenBusy(false);
+    }
   };
 
   const cancelCountdown = () => {
@@ -143,6 +217,7 @@ export function SpeakingStudio({
     cancelCountdown();
     setCard(null);
     setTelemetry(null);
+    setBridgeCompare(null);
     setRevealed(false);
     setTranscript("");
     setCheckpoints([]);
@@ -174,6 +249,7 @@ export function SpeakingStudio({
       onError: (msg) => setStatus(msg),
     });
 
+    const intervalMs = Math.max(8, settings.checkpointIntervalSec || 25) * 1000;
     if (checkpointTimer.current) window.clearInterval(checkpointTimer.current);
     checkpointTimer.current = window.setInterval(async () => {
       const text = transcriber.current.getFinalText();
@@ -184,11 +260,12 @@ export function SpeakingStudio({
         {
           activePrepDocSignals: ctx.prep_signals ?? prepMeta,
           retrievedResumeChunks: ctx.chunks,
+          interviewType,
         },
         settings,
       );
       setCheckpoints(cps);
-    }, 4000);
+    }, intervalMs);
   };
 
   const stopAndScore = async () => {
@@ -216,7 +293,8 @@ export function SpeakingStudio({
       userResponse: text,
       retrievedResumeChunks: ctx.chunks,
       activePrepDocSignals: ctx.prep_signals ?? prepMeta,
-      mode: "speaking" as const,
+      mode: bridgeSeed ? ("bridge" as const) : ("speaking" as const),
+      interviewType,
     };
     const tel = buildTelemetry(
       text,
@@ -228,15 +306,44 @@ export function SpeakingStudio({
     );
     setTelemetry(tel);
 
-    const scored = await evaluateResponse(input, settings, tel, (p) => setStatus(p.phase));
+    const scored = await evaluateResponse(
+      { ...input, speechMetrics: telemetryToSpeech(tel) },
+      settings,
+      tel,
+      (p) => setStatus(p.phase),
+    );
     setCard(scored);
     setRevealed(true);
     setScoring(false);
     setStatus("Debrief ready");
 
+    if (bridgeSeed?.writingCard) {
+      setBridgeCompare({
+        writingStructure: bridgeSeed.writingCard.structure.score,
+        speakingStructure: scored.structure.score,
+        writingOverall: bridgeSeed.writingCard.overall,
+        speakingOverall: scored.overall,
+        structureDelta: scored.structure.score - bridgeSeed.writingCard.structure.score,
+      });
+      onBridgeComplete?.();
+    }
+
+    setAttempts((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        question,
+        overall: scored.overall,
+        primaryGap: scored.primaryGap,
+        interviewType,
+        mode: bridgeSeed ? "bridge" : companyDrill ? "company_drill" : "speaking",
+        at: Date.now(),
+      },
+    ]);
+
     try {
       const payload = {
-        mode: "speaking",
+        mode: bridgeSeed ? "bridge" : "speaking",
         question,
         response: text,
         scores_json: JSON.stringify({ card: scored, telemetry: tel }),
@@ -273,8 +380,12 @@ export function SpeakingStudio({
       <PageHeader
         index="02"
         kicker="Speaking"
-        title="Mock interview"
-        description="Answer out loud. Live transcript, pacing HUD, and checkpoint pills that light up as you cover your prep signals."
+        title={bridgeSeed ? "Bridge retell" : "Mock interview"}
+        description={
+          bridgeSeed
+            ? "Speak the same outline you just wrote. We’ll compare structure scores."
+            : "Answer out loud. Mid-answer checkpoints, company-signal drills, and calibrated scorecards with vault citations."
+        }
         actions={
           <select
             value={prepId}
@@ -293,6 +404,39 @@ export function SpeakingStudio({
       />
 
       <div className="stagger space-y-4">
+        <Card className="p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="kicker">Interview type</span>
+            <Segmented
+              value={interviewType}
+              onChange={(v) => setInterviewType(v as InterviewType)}
+              options={INTERVIEW_TYPES.map((t) => ({ value: t.id, label: t.label }))}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setCompanyDrill((v) => !v);
+                if (!companyDrill) {
+                  const qs = companySignalPrompts(prepMeta);
+                  if (qs[0]) setQuestion(qs[0]);
+                }
+              }}
+              disabled={recording || !prepMeta}
+              className={cn("btn btn-sm", companyDrill ? "btn-primary" : "btn-secondary")}
+            >
+              <Building2 className="h-3.5 w-3.5" /> Company-signal drill
+            </button>
+            <button
+              type="button"
+              onClick={() => void generateQuestions()}
+              disabled={recording || genBusy}
+              className="btn btn-secondary btn-sm"
+            >
+              <Sparkles className="h-3.5 w-3.5" /> {genBusy ? "Generating…" : "Generate mock set"}
+            </button>
+          </div>
+        </Card>
+
         <Card className="relative overflow-hidden p-6">
           <div className="flex items-center justify-between gap-3">
             <span className="kicker flex items-center gap-2">
@@ -512,8 +656,16 @@ export function SpeakingStudio({
           said={transcript}
           evidence={retrieved?.chunks ?? []}
           revealed={revealed}
+          bridgeCompare={bridgeCompare}
+          onFollowUp={(q) => {
+            setQuestion(q);
+            setCard(null);
+            setStatus("Follow-up loaded — press mic when ready");
+          }}
         />
       )}
+
+      <SessionCoachPanel attempts={attempts} settings={settings} />
     </div>
   );
 }

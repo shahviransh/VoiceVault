@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, Lock, PenLine, Play, RotateCcw, Sparkles, Target } from "lucide-react";
-import type { AppSettings, CalibratedScorecard } from "@/lib/ai/types";
+import { Download, Lock, Mic, PenLine, Play, RotateCcw, Sparkles, Target } from "lucide-react";
+import type { AppSettings, CalibratedScorecard, InterviewType } from "@/lib/ai/types";
+import { INTERVIEW_TYPES } from "@/lib/ai/interview-types";
 import { evaluateResponse } from "@/lib/ai/providers";
 import {
   browserRag,
@@ -28,13 +29,18 @@ type TimerPreset = (typeof TIMER_PRESETS)[number]["value"];
 export function WritingStudio({
   documents,
   settings,
+  onBridgeToSpeaking,
 }: {
   documents: DocumentRecord[];
   settings: AppSettings;
+  onBridgeToSpeaking?: (seed: { prompt: string; writingCard: CalibratedScorecard }) => void;
 }) {
   const prepDocs = documents.filter((d) => d.doc_type === "career_ops_prep");
   const [prepId, setPrepId] = useState("");
   const [prepMeta, setPrepMeta] = useState<PrepMetadata | null>(null);
+  const [interviewType, setInterviewType] = useState<InterviewType>(
+    settings.defaultInterviewType ?? "behavioral",
+  );
   const [prompt, setPrompt] = useState(
     "Explain your system architecture tradeoff in under 150 words.",
   );
@@ -133,6 +139,7 @@ export function WritingStudio({
         retrievedResumeChunks: ctx.chunks,
         activePrepDocSignals: ctx.prep_signals ?? prepMeta,
         mode: "writing",
+        interviewType,
       },
       settings,
       undefined,
@@ -178,7 +185,7 @@ export function WritingStudio({
         index="03"
         kicker="Writing"
         title="Articulation drills"
-        description="Timed prompts with Focus Lock. Clipboard paste is blocked — every word comes from memory."
+        description="Timed prompts with Focus Lock. Score the draft, then bridge into a spoken retell."
         actions={
           <select
             value={prepId}
@@ -197,6 +204,17 @@ export function WritingStudio({
       />
 
       <div className="stagger space-y-4">
+        <Card className="p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="kicker">Interview type</span>
+            <Segmented
+              value={interviewType}
+              onChange={(v) => setInterviewType(v as InterviewType)}
+              options={INTERVIEW_TYPES.map((t) => ({ value: t.id, label: t.label }))}
+            />
+          </div>
+        </Card>
+
         <Card className="p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="kicker flex items-center gap-2">
@@ -287,6 +305,15 @@ export function WritingStudio({
             >
               <PenLine className="h-4 w-4" /> {scoring ? "Scoring…" : "Score draft"}
             </button>
+            {card && onBridgeToSpeaking && (
+              <button
+                type="button"
+                onClick={() => onBridgeToSpeaking({ prompt, writingCard: card })}
+                className="btn btn-secondary"
+              >
+                <Mic className="h-4 w-4" /> Retell aloud (bridge)
+              </button>
+            )}
             {sessionId && (
               <button type="button" onClick={() => void exportDebrief()} className="btn btn-secondary">
                 <Download className="h-4 w-4" /> Export .md
@@ -297,7 +324,19 @@ export function WritingStudio({
         </Card>
       </div>
 
-      {card && <Scorecard card={card} said={draft} evidence={evidence} revealed />}
+      {card && (
+        <Scorecard
+          card={card}
+          said={draft}
+          evidence={evidence}
+          revealed
+          onFollowUp={(q) => {
+            setPrompt(`In under 150 words, answer: ${q}`);
+            setCard(null);
+            setStatus("Follow-up prompt loaded");
+          }}
+        />
+      )}
     </div>
   );
 }

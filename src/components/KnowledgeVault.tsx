@@ -8,11 +8,15 @@ import {
   FolderGit2,
   Loader2,
   Search,
+  Sparkles,
   Target,
   Trash2,
   UploadCloud,
   UserRound,
 } from "lucide-react";
+import { generateStarSkeletons } from "@/lib/ai/coach";
+import type { AppSettings, StarSkeleton } from "@/lib/ai/types";
+import { DEFAULT_SETTINGS } from "@/lib/settings";
 import {
   browserRag,
   isTauri,
@@ -53,9 +57,11 @@ const DOC_LABEL: Record<string, string> = {
 export function KnowledgeVault({
   documents,
   onDocumentsChange,
+  settings = DEFAULT_SETTINGS,
 }: {
   documents: DocumentRecord[];
   onDocumentsChange: (docs: DocumentRecord[]) => void;
+  settings?: AppSettings;
 }) {
   const [docType, setDocType] = useState<DocType>("resume");
   const [busy, setBusy] = useState(false);
@@ -64,6 +70,8 @@ export function KnowledgeVault({
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<RetrieveResult | null>(null);
   const [showPaste, setShowPaste] = useState(false);
+  const [stars, setStars] = useState<StarSkeleton[]>([]);
+  const [starBusy, setStarBusy] = useState(false);
   const [factDraft, setFactDraft] = useState({
     target_roles: "",
     tech_stack: "",
@@ -198,6 +206,40 @@ export function KnowledgeVault({
     } finally {
       setBusy(false);
     }
+  };
+
+  const draftStars = async () => {
+    setStarBusy(true);
+    setMessage("Drafting STAR skeletons from vault…");
+    try {
+      const ctx = await retrieveSafe("impact ownership leadership project results metrics", null, 10);
+      const drafts = await generateStarSkeletons(ctx.chunks, settings);
+      setStars(drafts);
+      setMessage(
+        drafts.length
+          ? `Drafted ${drafts.length} STAR skeletons — edit before treating as answers`
+          : "No story-ready chunks found — ingest resume / story bank / projects first",
+      );
+    } catch (e) {
+      setMessage(String(e));
+    } finally {
+      setStarBusy(false);
+    }
+  };
+
+  const applyStarToFacts = (s: StarSkeleton) => {
+    const block = [
+      s.title,
+      `Situation: ${s.situation}`,
+      `Task: ${s.task}`,
+      `Action: ${s.action}`,
+      `Result: ${s.result}`,
+    ].join("\n");
+    setFactDraft((prev) => ({
+      ...prev,
+      star_stories: prev.star_stories.trim() ? `${prev.star_stories.trim()}\n\n${block}` : block,
+    }));
+    setMessage(`Added "${s.title}" into Profile facts — review, then Save & re-index`);
   };
 
   const maxScore = Math.max(...(result?.chunks.map((c) => c.score ?? 0) ?? [0]), 0.0001);
@@ -386,6 +428,72 @@ export function KnowledgeVault({
             )}
           </Card>
         </div>
+
+        <Card className="p-5">
+          <CardHeader
+            icon={Sparkles}
+            title="Story-bank enrichment"
+            subtitle="Draft STAR skeletons from indexed docs — edit them; never memorize AI-final answers"
+            actions={
+              <button
+                type="button"
+                onClick={() => void draftStars()}
+                disabled={starBusy || !documents.length}
+                className="btn btn-secondary btn-sm"
+              >
+                {starBusy ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                Draft STAR skeletons
+              </button>
+            }
+          />
+          {stars.length ? (
+            <ul className="space-y-3">
+              {stars.map((s) => (
+                <li key={`${s.title}-${s.sourceHint}`} className="card-inset p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div className="font-display text-base font-semibold text-ink">{s.title}</div>
+                      <div className="kicker mt-1">{s.sourceHint}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => applyStarToFacts(s)}
+                      className="btn btn-ghost btn-sm"
+                    >
+                      Add to profile facts
+                    </button>
+                  </div>
+                  <dl className="mt-3 grid gap-2 text-sm text-ink-soft sm:grid-cols-2">
+                    <div>
+                      <dt className="kicker">Situation</dt>
+                      <dd>{s.situation}</dd>
+                    </div>
+                    <div>
+                      <dt className="kicker">Task</dt>
+                      <dd>{s.task}</dd>
+                    </div>
+                    <div>
+                      <dt className="kicker">Action</dt>
+                      <dd>{s.action}</dd>
+                    </div>
+                    <div>
+                      <dt className="kicker">Result</dt>
+                      <dd>{s.result}</dd>
+                    </div>
+                  </dl>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-ink-faint">
+              Skeletons stay editable drafts aligned with MindVault — you own the final stories.
+            </p>
+          )}
+        </Card>
 
         <Card className="p-5">
           <CardHeader

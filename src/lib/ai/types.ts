@@ -33,6 +33,13 @@ export type DeliveryTone =
   | "Overly Casual"
   | "Sounds Memorized";
 
+export type InterviewType =
+  | "behavioral"
+  | "system_design"
+  | "product"
+  | "coding_verbal"
+  | "general";
+
 export type RetrievedChunk = {
   id: string;
   doc_id: string;
@@ -50,12 +57,26 @@ export type PrepSignals = {
   things_to_avoid: string[];
 };
 
+export type SpeechMetrics = {
+  wpm: number;
+  fillersPer100: number;
+  hedgeRatio: number;
+  silenceGaps: number;
+  durationSec: number;
+  earlyWpm: number;
+  lateWpm: number;
+  fillerCount?: number;
+  wordCount?: number;
+};
+
 export type ScoringInput = {
   question: string;
   userResponse: string;
   retrievedResumeChunks: RetrievedChunk[];
   activePrepDocSignals?: PrepSignals | null;
-  mode?: "speaking" | "writing" | "proof_point";
+  mode?: "speaking" | "writing" | "proof_point" | "bridge";
+  interviewType?: InterviewType;
+  speechMetrics?: SpeechMetrics | null;
 };
 
 export type LiveCheckpoint = {
@@ -64,6 +85,33 @@ export type LiveCheckpoint = {
   instructions: string;
   probability: number;
   hit: boolean;
+};
+
+export type EvidenceCitation = {
+  chunkId: string;
+  reason: string;
+  strength: number;
+};
+
+export type ScoreDelta = {
+  clarity: number;
+  structure: number;
+  conciseness: number;
+  evidenceAlignment: number;
+  overall: number;
+  previousOverall: number;
+};
+
+export type FallbackStep = {
+  provider: AiProviderKind;
+  ok: boolean;
+  reason?: string;
+};
+
+export type RetrievalHint = {
+  docType: string;
+  label: string;
+  reason: string;
 };
 
 export type CalibratedScorecard = {
@@ -83,6 +131,14 @@ export type CalibratedScorecard = {
   overall: number;
   liveCheckpoints?: LiveCheckpoint[];
   critique?: string;
+  /** Critique withheld until confidence clears threshold or strict sync later */
+  critiqueDeferred?: boolean;
+  critiqueDeferredReason?: string;
+  citations?: EvidenceCitation[];
+  delta?: ScoreDelta | null;
+  fallbackChain?: FallbackStep[];
+  retrievalHints?: RetrievalHint[];
+  followUps?: string[];
   raw?: Record<string, SystemOneAnswer>;
 };
 
@@ -112,4 +168,57 @@ export type AppSettings = {
   confidenceThreshold: number;
   preferredProvider: AiProviderKind;
   enableCoachCritique: boolean;
+  defaultInterviewType: InterviewType;
+  checkpointIntervalSec: number;
+  deferCritiqueInStrictMode: boolean;
+};
+
+export type GeneratedQuestion = {
+  text: string;
+  interviewType: InterviewType;
+  difficulty: "easy" | "medium" | "hard";
+  focus: string;
+};
+
+export type StarSkeleton = {
+  title: string;
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+  sourceHint: string;
+};
+
+export type SessionAttempt = {
+  id: string;
+  question: string;
+  overall: number;
+  primaryGap: PrimaryGap;
+  interviewType: InterviewType;
+  mode: string;
+  at: number;
+};
+
+export type SessionCoachSummary = {
+  topGaps: string[];
+  wins: string[];
+  practicePlan: string[];
+  averageOverall: number;
+  attemptCount: number;
+  engine: string;
+};
+
+export type ProviderHealth = {
+  id: AiProviderKind;
+  label: string;
+  status: "ok" | "warn" | "down" | "skip";
+  detail: string;
+};
+
+export type BridgeCompare = {
+  writingStructure: number;
+  speakingStructure: number;
+  writingOverall: number;
+  speakingOverall: number;
+  structureDelta: number;
 };

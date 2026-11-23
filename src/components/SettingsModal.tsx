@@ -2,8 +2,9 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Check, KeyRound, Server, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
+import { INTERVIEW_TYPES } from "@/lib/ai/interview-types";
 import { PROVIDERS, type ProviderTag } from "@/lib/ai/provider-meta";
-import type { AppSettings } from "@/lib/ai/types";
+import type { AppSettings, InterviewType } from "@/lib/ai/types";
 import { detectLmStudioModels, detectOllamaModels } from "@/lib/ai/providers";
 import { isTauri, ragApi } from "@/lib/tauri/rag";
 import { cn } from "@/lib/utils";
@@ -201,18 +202,55 @@ export function SettingsModal({
             <div className="space-y-2">
               <Switch
                 label="Strict MindVault Mode"
-                hint="Blocks cloud BYOK providers and coach critique"
+                hint="Local-first scoring (LM Studio → Ollama → heuristics); cloud deferred"
                 checked={draft.strictMindVaultMode}
                 onChange={(v) => set("strictMindVaultMode", v)}
               />
               <Switch
+                label="Defer critique in Strict mode"
+                hint="Score now, queue coach critique for later sync when cloud is allowed"
+                checked={draft.deferCritiqueInStrictMode}
+                onChange={(v) => set("deferCritiqueInStrictMode", v)}
+              />
+              <Switch
                 label="Coach critique"
-                hint="2–3 sentences of feedback after scoring (BYOK)"
+                hint="Only shown when confidence clears the threshold"
                 checked={draft.enableCoachCritique}
-                disabled={draft.strictMindVaultMode}
                 onChange={(v) => set("enableCoachCritique", v)}
               />
             </div>
+            <label className="mt-4 block">
+              <FieldLabel>Default interview type</FieldLabel>
+              <select
+                value={draft.defaultInterviewType}
+                onChange={(e) => set("defaultInterviewType", e.target.value as InterviewType)}
+                className="input"
+              >
+                {INTERVIEW_TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label} — {t.blurb}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="mt-3 block">
+              <FieldLabel
+                hint={
+                  <span className="mono-num text-ink">{draft.checkpointIntervalSec}s</span>
+                }
+              >
+                Mid-answer checkpoint interval
+              </FieldLabel>
+              <input
+                type="range"
+                min={10}
+                max={45}
+                step={5}
+                value={draft.checkpointIntervalSec}
+                onChange={(e) => set("checkpointIntervalSec", Number(e.target.value))}
+                className="w-full accent-[var(--accent)]"
+              />
+            </label>
           </Section>
 
           <Section icon={KeyRound} title="Cloud keys" subtitle="Optional — stored locally only">

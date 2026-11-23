@@ -1,12 +1,14 @@
 import type {
   CalibratedScorecard,
   DeliveryTone,
+  InterviewType,
   LiveCheckpoint,
   PrepSignals,
   PrimaryGap,
   ScoringInput,
 } from "./types";
 import { buildLiveCheckpointDefs } from "./jev-scorer";
+import { heuristicCitations } from "./coach";
 
 const FILLERS = ["um", "uh", "erm", "like", "basically", "literally", "you know", "sort of", "kind of"];
 const HEDGES = ["maybe", "kind of", "sort of", "i think", "i guess", "probably", "possibly", "not sure"];
@@ -146,9 +148,24 @@ export function scoreWithHeuristics(
     lowConfidence: conf < confidenceThreshold,
   });
 
+  // Fuse speech metrics when present (delivery + content).
+  let clarityAdj = clarity;
+  let tone = deliveryTone;
+  if (input.speechMetrics) {
+    const sm = input.speechMetrics;
+    clarityAdj = clamp(
+      clarity - sm.fillersPer100 * 0.15 - (sm.silenceGaps > 4 ? 0.6 : 0),
+      1,
+      10,
+    );
+    if (sm.hedgeRatio > 0.04 || sm.fillersPer100 > 5) tone = "Hesitant / Hedging";
+  }
+
+  const citations = heuristicCitations(input.userResponse, input.retrievedResumeChunks);
+
   return {
     engine: "heuristic",
-    clarity: mk(clarity),
+    clarity: mk(clarityAdj),
     structure: mk(structure),
     conciseness: mk(conciseness),
     evidenceAlignment: mk(evidence),
@@ -158,9 +175,10 @@ export function scoreWithHeuristics(
     avoidedRedFlags: round1(avoided),
     primaryGap,
     primaryGapConfidence: round1(conf),
-    deliveryTone,
+    deliveryTone: tone,
     deliveryToneConfidence: round1(conf),
-    overall: round1((clarity + structure + conciseness + evidence) / 4),
+    overall: round1((clarityAdj + structure + conciseness + evidence) / 4),
+    citations,
   };
 }
 
@@ -168,8 +186,9 @@ export function liveCheckpointsFromHeuristics(
   transcript: string,
   signals?: PrepSignals | null,
   chunks: ScoringInput["retrievedResumeChunks"] = [],
+  interviewType: InterviewType = "general",
 ): LiveCheckpoint[] {
-  const defs = buildLiveCheckpointDefs(signals, chunks);
+  const defs = buildLiveCheckpointDefs(signals, chunks, interviewType);
   const lower = transcript.toLowerCase();
   return defs.map((d) => {
     const tokens = tokenize(d.label);

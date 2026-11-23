@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Library, Mic, PenLine, Settings2, ShieldCheck, Zap } from "lucide-react";
 import { providerLabel } from "@/lib/ai/provider-meta";
-import type { AppSettings } from "@/lib/ai/types";
+import type { AppSettings, CalibratedScorecard } from "@/lib/ai/types";
+import { syncDeferredCritiques } from "@/lib/ai/providers";
 import { loadSettings, saveSettings } from "@/lib/settings";
 import { applyTheme, loadThemeMode, saveThemeMode, type ThemeMode } from "@/lib/theme";
 import {
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { KnowledgeVault } from "./KnowledgeVault";
 import { OfflineIndicator } from "./OfflineIndicator";
 import { ProofPointMode } from "./ProofPointMode";
+import { ProviderHealthStrip } from "./ProviderHealthStrip";
 import { SettingsModal } from "./SettingsModal";
 import { SpeakingStudio } from "./SpeakingStudio";
 import { ThemeToggle } from "./ThemeToggle";
@@ -49,6 +51,10 @@ export function AppShell() {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [offline, setOffline] = useState<OfflineStatus | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>("system");
+  const [bridgeSeed, setBridgeSeed] = useState<{
+    prompt: string;
+    writingCard: CalibratedScorecard;
+  } | null>(null);
 
   useEffect(() => {
     const mode = loadThemeMode();
@@ -169,15 +175,15 @@ export function AppShell() {
               label="Embeddings"
               value={offline?.embedding_backend?.replace("fastembed:", "") ?? "—"}
             />
-            <StatusRow
-              label="Docs indexed"
-              value={String(documents.length)}
-            />
+            <StatusRow label="Docs indexed" value={String(documents.length)} />
             {settings.strictMindVaultMode && (
               <div className="flex items-center gap-1.5 pt-0.5 text-[11px] font-semibold text-accent">
                 <ShieldCheck className="h-3.5 w-3.5" /> Strict MindVault Mode
               </div>
             )}
+            <div className="border-t border-line pt-2.5">
+              <ProviderHealthStrip settings={settings} compact />
+            </div>
           </div>
           <ThemeToggle mode={themeMode} onChange={onThemeChange} />
           <button
@@ -218,10 +224,7 @@ export function AppShell() {
                 key={id}
                 type="button"
                 onClick={() => setTab(id)}
-                className={cn(
-                  "chip h-8 shrink-0 px-3",
-                  tab === id && "chip-accent",
-                )}
+                className={cn("chip h-8 shrink-0 px-3", tab === id && "chip-accent")}
               >
                 <Icon className="h-3.5 w-3.5" /> {label}
               </button>
@@ -232,10 +235,30 @@ export function AppShell() {
 
         <main key={tab} className="mx-auto max-w-5xl px-4 py-8 sm:px-8 lg:py-10">
           {tab === "vault" && (
-            <KnowledgeVault documents={documents} onDocumentsChange={setDocuments} />
+            <KnowledgeVault
+              documents={documents}
+              onDocumentsChange={setDocuments}
+              settings={settings}
+            />
           )}
-          {tab === "speak" && <SpeakingStudio documents={documents} settings={settings} />}
-          {tab === "write" && <WritingStudio documents={documents} settings={settings} />}
+          {tab === "speak" && (
+            <SpeakingStudio
+              documents={documents}
+              settings={settings}
+              bridgeSeed={bridgeSeed}
+              onBridgeComplete={() => setBridgeSeed(null)}
+            />
+          )}
+          {tab === "write" && (
+            <WritingStudio
+              documents={documents}
+              settings={settings}
+              onBridgeToSpeaking={(seed) => {
+                setBridgeSeed(seed);
+                setTab("speak");
+              }}
+            />
+          )}
           {tab === "proof" && <ProofPointMode settings={settings} />}
         </main>
       </div>
@@ -247,6 +270,9 @@ export function AppShell() {
         onSave={(s) => {
           setSettings(s);
           saveSettings(s);
+          if (!s.strictMindVaultMode) {
+            void syncDeferredCritiques(s);
+          }
         }}
       />
     </div>

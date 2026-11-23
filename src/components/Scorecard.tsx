@@ -1,9 +1,20 @@
 "use client";
 
-import { AlertTriangle, Check, EyeOff, Quote, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  Check,
+  EyeOff,
+  Link2,
+  Minus,
+  Quote,
+  X,
+} from "lucide-react";
 import type { CalibratedScorecard, RetrievedChunk } from "@/lib/ai/types";
 import type { DeliveryTelemetry } from "@/lib/ai/heuristics";
 import { cn } from "@/lib/utils";
+import { FallbackBanner } from "./FallbackBanner";
 import { SegmentMeter } from "./ui/primitives";
 import { ScoreRing } from "./ui/ScoreRing";
 
@@ -22,18 +33,27 @@ export function Scorecard({
   said,
   evidence,
   revealed,
+  onFollowUp,
+  bridgeCompare,
 }: {
   card: CalibratedScorecard;
   telemetry?: DeliveryTelemetry | null;
   said: string;
   evidence: RetrievedChunk[];
   revealed: boolean;
+  onFollowUp?: (q: string) => void;
+  bridgeCompare?: {
+    writingStructure: number;
+    speakingStructure: number;
+    writingOverall: number;
+    speakingOverall: number;
+  } | null;
 }) {
   const metrics = [
-    { label: "Clarity", m: card.clarity },
-    { label: "Structure", m: card.structure },
-    { label: "Conciseness", m: card.conciseness },
-    { label: "Evidence alignment", m: card.evidenceAlignment },
+    { label: "Clarity", m: card.clarity, delta: card.delta?.clarity },
+    { label: "Structure", m: card.structure, delta: card.delta?.structure },
+    { label: "Conciseness", m: card.conciseness, delta: card.delta?.conciseness },
+    { label: "Evidence alignment", m: card.evidenceAlignment, delta: card.delta?.evidenceAlignment },
   ];
   const nouls = [
     { label: "Answered directly", v: card.answeredPromptDirectly },
@@ -42,9 +62,12 @@ export function Scorecard({
     { label: "Avoided red flags", v: card.avoidedRedFlags },
   ];
   const strong = card.primaryGap === "Strong Delivery";
+  const citedIds = new Set(card.citations?.map((c) => c.chunkId) ?? []);
 
   return (
     <section className="stagger mt-8 space-y-4">
+      <FallbackBanner chain={card.fallbackChain} />
+
       <div className="card relative overflow-hidden p-6">
         <div
           className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full blur-3xl"
@@ -56,6 +79,18 @@ export function Scorecard({
             <div className="flex flex-wrap items-center gap-2">
               <span className="kicker">Debrief</span>
               <span className="chip">{ENGINE_LABEL[card.engine]}</span>
+              {card.delta && (
+                <span
+                  className={cn(
+                    "chip mono-num",
+                    card.delta.overall > 0 && "chip-good",
+                    card.delta.overall < 0 && "chip-warn",
+                  )}
+                >
+                  <DeltaIcon v={card.delta.overall} /> vs last{" "}
+                  {card.delta.previousOverall.toFixed(1)} → {fmtDelta(card.delta.overall)}
+                </span>
+              )}
             </div>
             <div>
               <div className="kicker mb-1">Primary gap</div>
@@ -78,14 +113,49 @@ export function Scorecard({
         </div>
       </div>
 
+      {bridgeCompare && (
+        <div className="card grid gap-3 p-4 sm:grid-cols-2">
+          <div className="card-inset p-3">
+            <div className="kicker">Writing → Speaking bridge</div>
+            <p className="mt-2 text-sm text-ink-soft">
+              Structure {bridgeCompare.writingStructure.toFixed(1)} →{" "}
+              <span className="font-semibold text-ink">
+                {bridgeCompare.speakingStructure.toFixed(1)}
+              </span>{" "}
+              ({fmtDelta(bridgeCompare.speakingStructure - bridgeCompare.writingStructure)})
+            </p>
+            <p className="mt-1 text-sm text-ink-soft">
+              Overall {bridgeCompare.writingOverall.toFixed(1)} →{" "}
+              {bridgeCompare.speakingOverall.toFixed(1)}
+            </p>
+          </div>
+          <p className="self-center text-sm text-ink-soft">
+            Retelling out loud should keep structure while tightening delivery. Aim for speaking
+            structure ≥ writing structure.
+          </p>
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2">
-        {metrics.map(({ label, m }) => (
+        {metrics.map(({ label, m, delta }) => (
           <div key={label} className="card p-4">
             <div className="mb-3 flex items-baseline justify-between">
               <span className="text-sm font-semibold text-ink">{label}</span>
               <span className="mono-num text-lg font-semibold text-ink">
                 {m.score.toFixed(1)}
                 <span className="text-xs text-ink-faint"> /10</span>
+                {typeof delta === "number" && (
+                  <span
+                    className={cn(
+                      "ml-2 text-xs",
+                      delta > 0 && "text-good",
+                      delta < 0 && "text-warn",
+                      delta === 0 && "text-ink-faint",
+                    )}
+                  >
+                    {fmtDelta(delta)}
+                  </span>
+                )}
               </span>
             </div>
             <SegmentMeter value={m.score} />
@@ -166,6 +236,54 @@ export function Scorecard({
         </div>
       )}
 
+      {card.critiqueDeferred && (
+        <div className="card flex gap-3 border-l-2 p-4" style={{ borderLeftColor: "var(--warn)" }}>
+          <AlertTriangle className="h-4 w-4 shrink-0 text-warn" />
+          <div>
+            <div className="text-sm font-semibold text-ink">Coach critique deferred</div>
+            <p className="mt-1 text-sm text-ink-soft">
+              {card.critiqueDeferredReason ?? "Critique withheld for this attempt."}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!!card.followUps?.length && (
+        <div className="card p-5">
+          <div className="kicker mb-3">Interviewer follow-ups</div>
+          <ul className="space-y-2">
+            {card.followUps.map((q) => (
+              <li key={q} className="flex flex-wrap items-start justify-between gap-2 card-inset p-3">
+                <p className="flex-1 text-sm leading-relaxed text-ink">{q}</p>
+                {onFollowUp && (
+                  <button
+                    type="button"
+                    onClick={() => onFollowUp(q)}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    Practice this
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {!!card.retrievalHints?.length && (
+        <div className="card p-5">
+          <div className="kicker mb-3">Vault suggestions</div>
+          <ul className="space-y-2">
+            {card.retrievalHints.map((h) => (
+              <li key={`${h.docType}-${h.reason}`} className="card-inset p-3">
+                <span className="chip chip-accent h-6">{h.label}</span>
+                <p className="mt-2 text-sm text-ink-soft">{h.reason}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="card p-5">
           <div className="kicker mb-3">What you said</div>
@@ -178,17 +296,36 @@ export function Scorecard({
           {revealed ? (
             evidence.length ? (
               <ul className="space-y-3">
-                {evidence.map((c) => (
-                  <li key={c.id} className="card-inset p-3">
-                    <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-                      <span className="chip chip-accent h-6">{c.doc_type.replace(/_/g, " ")}</span>
-                      {c.heading && (
-                        <span className="truncate text-xs font-semibold text-ink-soft">{c.heading}</span>
+                {evidence.map((c) => {
+                  const cited = citedIds.has(c.id);
+                  const citation = card.citations?.find((x) => x.chunkId === c.id);
+                  return (
+                    <li
+                      key={c.id}
+                      className={cn(
+                        "card-inset p-3 transition",
+                        cited && "ring-1 ring-[color-mix(in_srgb,var(--accent)_45%,transparent)]",
                       )}
-                    </div>
-                    <p className="line-clamp-5 text-sm leading-relaxed text-ink-soft">{c.content}</p>
-                  </li>
-                ))}
+                    >
+                      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="chip chip-accent h-6">{c.doc_type.replace(/_/g, " ")}</span>
+                        {c.heading && (
+                          <span className="truncate text-xs font-semibold text-ink-soft">{c.heading}</span>
+                        )}
+                        {cited && (
+                          <span className="chip chip-good h-6">
+                            <Link2 className="h-3 w-3" /> Cited
+                            {citation ? ` · ${(citation.strength * 100).toFixed(0)}%` : ""}
+                          </span>
+                        )}
+                      </div>
+                      {citation && (
+                        <p className="mb-1.5 text-[11px] text-accent">{citation.reason}</p>
+                      )}
+                      <p className="line-clamp-5 text-sm leading-relaxed text-ink-soft">{c.content}</p>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-sm text-ink-faint">No chunks retrieved.</p>
@@ -202,6 +339,18 @@ export function Scorecard({
       </div>
     </section>
   );
+}
+
+function DeltaIcon({ v }: { v: number }) {
+  if (v > 0) return <ArrowUpRight className="h-3 w-3" />;
+  if (v < 0) return <ArrowDownRight className="h-3 w-3" />;
+  return <Minus className="h-3 w-3" />;
+}
+
+function fmtDelta(n: number): string {
+  if (n > 0) return `+${n.toFixed(1)}`;
+  if (n < 0) return n.toFixed(1);
+  return "±0";
 }
 
 function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {

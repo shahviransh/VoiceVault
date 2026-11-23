@@ -15,6 +15,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   confidenceThreshold: 0.7,
   preferredProvider: "jev",
   enableCoachCritique: false,
+  defaultInterviewType: "behavioral",
+  checkpointIntervalSec: 25,
+  deferCritiqueInStrictMode: true,
 };
 
 export function loadSettings(): AppSettings {

@@ -1,7 +1,15 @@
+import {
+  clarityInstructions,
+  evidenceInstructions,
+  structureInstructions,
+  typeHintBlock,
+} from "./interview-types";
 import type {
   CalibratedScorecard,
   ChoiceAnswer,
   DeliveryTone,
+  EvidenceCitation,
+  InterviewType,
   LiveCheckpoint,
   NoulAnswer,
   PrepSignals,
@@ -35,7 +43,10 @@ type QuestionDef =
 function buildState(input: ScoringInput): string {
   const chunks = input.retrievedResumeChunks
     .slice(0, 8)
-    .map((c, i) => `[${i + 1}] (${c.doc_type}${c.heading ? ` / ${c.heading}` : ""})\n${c.content}`)
+    .map(
+      (c, i) =>
+        `[id=${c.id}] #${i + 1} (${c.doc_type}${c.heading ? ` / ${c.heading}` : ""})\n${c.content}`,
+    )
     .join("\n\n");
 
   const signals = input.activePrepDocSignals;
@@ -47,6 +58,9 @@ function buildState(input: ScoringInput): string {
       ].join("\n")
     : "No active prep doc signals.";
 
+  const interviewType: InterviewType = input.interviewType ?? "general";
+  const speech = input.speechMetrics;
+
   return JSON.stringify(
     {
       question: input.question,
@@ -54,6 +68,19 @@ function buildState(input: ScoringInput): string {
       retrieved_resume_chunks: chunks,
       active_prep_doc_signals: signalBlock,
       mode: input.mode ?? "speaking",
+      interview_type: interviewType,
+      interview_type_hint: typeHintBlock(interviewType),
+      speech_metrics: speech
+        ? {
+            wpm: speech.wpm,
+            fillers_per_100: speech.fillersPer100,
+            hedge_ratio: speech.hedgeRatio,
+            silence_gaps: speech.silenceGaps,
+            duration_sec: speech.durationSec,
+            early_wpm: speech.earlyWpm,
+            late_wpm: speech.lateWpm,
+          }
+        : null,
     },
     null,
     0,
@@ -61,19 +88,21 @@ function buildState(input: ScoringInput): string {
 }
 
 function buildQuestions(input: ScoringInput): Record<string, QuestionDef> {
+  const interviewType: InterviewType = input.interviewType ?? "general";
   const isWriting = input.mode === "writing";
+  const speechNote = input.speechMetrics
+    ? " Factor in provided speech_metrics (WPM, fillers, hedges, silence gaps) for delivery judgments."
+    : "";
+
   return {
     clarity_score: {
       type: "score",
-      instructions:
-        "Rate clarity, pacing, and jargon-appropriate explanation in the candidate response.",
+      instructions: clarityInstructions(interviewType) + speechNote,
       criteria: SCORE_CRITERIA_1_TO_10,
     },
     structure_score: {
       type: "score",
-      instructions: isWriting
-        ? "Rate logical flow with thesis-first writing structure."
-        : "Rate logical flow and STAR alignment for a behavioral/spoken interview answer.",
+      instructions: structureInstructions(interviewType, input.mode),
       criteria: SCORE_CRITERIA_1_TO_10,
     },
     conciseness_score: {
@@ -83,8 +112,7 @@ function buildQuestions(input: ScoringInput): Record<string, QuestionDef> {
     },
     evidence_alignment_score: {
       type: "score",
-      instructions:
-        "Rate how well the response backs claims with concrete facts/projects from retrieved resume & prep context.",
+      instructions: evidenceInstructions(interviewType),
       criteria: SCORE_CRITERIA_1_TO_10,
     },
     answered_prompt_directly: {
@@ -128,18 +156,34 @@ function buildQuestions(input: ScoringInput): Record<string, QuestionDef> {
         "Missed Prep Signals": "Failed to hit company/prep keywords and signals",
         "Lacks Concrete Resume Evidence": "Claims not backed by resume/project facts",
         "Rambling / Too Long": "Low signal-to-noise, meandering",
-        "Weak Structure": "Poor STAR/thesis flow",
+        "Weak Structure": "Poor STAR/thesis/architecture flow",
         "Strong Delivery": "Overall strong; no major gap",
       },
     },
     delivery_tone: {
       type: "choice",
-      instructions: "Classify delivery tone of the response.",
+      instructions:
+        "Classify delivery tone of the response." +
+        (isWriting ? " For writing, infer tone from diction and hedging." : speechNote),
       criteria: {
         "Confident & Crisp": "Clear, decisive, composed",
         "Hesitant / Hedging": "Lots of hedging or uncertainty markers",
         "Overly Casual": "Too informal for interview context",
         "Sounds Memorized": "Stiff/recited sounding delivery",
+      },
+    },
+    evidence_chunk_ids: {
+      type: "choice",
+      instructions:
+        "Which retrieved chunk ids (comma-separated, max 3) most strongly support the answer? Prefer ids from state. If none, choose none.",
+      criteria: {
+        none: "No supporting chunk",
+        ...Object.fromEntries(
+          input.retrievedResumeChunks.slice(0, 8).map((c) => [
+            c.id,
+            `${c.doc_type}${c.heading ? ` / ${c.heading}` : ""} — ${c.content.slice(0, 80)}`,
+          ]),
+        ),
       },
     },
   };
@@ -148,6 +192,7 @@ function buildQuestions(input: ScoringInput): Record<string, QuestionDef> {
 export function buildLiveCheckpointDefs(
   signals?: PrepSignals | null,
   chunks: RetrievedChunk[] = [],
+  interviewType: InterviewType = "general",
 ): Array<{ id: string; label: string; instructions: string }> {
   const defs: Array<{ id: string; label: string; instructions: string }> = [];
 
@@ -177,17 +222,72 @@ export function buildLiveCheckpointDefs(
     });
   });
 
+  // Mid-answer STAR / structure checkpoints
+  if (interviewType === "behavioral" || interviewType === "general") {
+    defs.push(
+      {
+        id: "ckpt_situation",
+        label: "Situation",
+        instructions: "Has the speaker set context / situation so far?",
+      },
+      {
+        id: "ckpt_metric",
+        label: "Metric",
+        instructions: "Has the speaker mentioned a concrete metric, outcome, or number?",
+      },
+      {
+        id: "ckpt_result",
+        label: "Result",
+        instructions: "Has the speaker stated a result or impact yet?",
+      },
+    );
+  } else if (interviewType === "system_design") {
+    defs.push(
+      {
+        id: "ckpt_reqs",
+        label: "Requirements",
+        instructions: "Have requirements or constraints been clarified?",
+      },
+      {
+        id: "ckpt_tradeoff",
+        label: "Tradeoff",
+        instructions: "Has at least one explicit tradeoff been named?",
+      },
+    );
+  } else if (interviewType === "product") {
+    defs.push(
+      {
+        id: "ckpt_user",
+        label: "User",
+        instructions: "Has the speaker named the user / problem clearly?",
+      },
+      {
+        id: "ckpt_metric",
+        label: "Success metric",
+        instructions: "Has a success metric been proposed?",
+      },
+    );
+  } else if (interviewType === "coding_verbal") {
+    defs.push(
+      {
+        id: "ckpt_approach",
+        label: "Approach",
+        instructions: "Has an algorithm approach been stated?",
+      },
+      {
+        id: "ckpt_complexity",
+        label: "Complexity",
+        instructions: "Has time/space complexity been mentioned?",
+      },
+    );
+  }
+
   if (defs.length < 3) {
     defs.push(
       {
         id: "ckpt_direct",
         label: "Direct answer",
         instructions: "Is the speaker directly answering the question asked so far?",
-      },
-      {
-        id: "ckpt_metric",
-        label: "Concrete metric",
-        instructions: "Has the speaker mentioned a concrete metric, outcome, or number?",
       },
       {
         id: "ckpt_ownership",
@@ -197,7 +297,7 @@ export function buildLiveCheckpointDefs(
     );
   }
 
-  return defs.slice(0, 5);
+  return defs.slice(0, 6);
 }
 
 export async function scoreWithJev(
@@ -233,7 +333,7 @@ export async function scoreWithJev(
     answers: Record<string, SystemOneAnswer>;
   };
 
-  return answersToScorecard(data.answers, confidenceThreshold, "jev");
+  return answersToScorecard(data.answers, confidenceThreshold, "jev", input);
 }
 
 export async function scoreLiveCheckpointsWithJev(
@@ -283,6 +383,7 @@ export function answersToScorecard(
   answers: Record<string, SystemOneAnswer>,
   confidenceThreshold: number,
   engine: CalibratedScorecard["engine"],
+  input?: ScoringInput,
 ): CalibratedScorecard {
   const clarity = asScore(answers.clarity_score, confidenceThreshold);
   const structure = asScore(answers.structure_score, confidenceThreshold);
@@ -301,6 +402,8 @@ export function answersToScorecard(
   const overall =
     (clarity.score + structure.score + conciseness.score + evidence.score) / 4;
 
+  const citations = parseCitations(answers.evidence_chunk_ids, input?.retrievedResumeChunks ?? []);
+
   return {
     engine,
     clarity,
@@ -316,8 +419,36 @@ export function answersToScorecard(
     deliveryTone: tone.choice,
     deliveryToneConfidence: tone.confidence,
     overall,
+    citations,
     raw: answers,
   };
+}
+
+function parseCitations(
+  answer: SystemOneAnswer | undefined,
+  chunks: RetrievedChunk[],
+): EvidenceCitation[] {
+  if (!answer || answer.type !== "choice") return [];
+  const choice = (answer as ChoiceAnswer).choice;
+  if (!choice || choice === "none") return [];
+  const ids = choice
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const byId = new Map(chunks.map((c) => [c.id, c]));
+  const out: EvidenceCitation[] = [];
+  for (const id of ids) {
+    const c = byId.get(id);
+    if (!c) continue;
+    out.push({
+      chunkId: id,
+      reason: c.heading
+        ? `Cited vault section "${c.heading}"`
+        : `Cited ${c.doc_type.replace(/_/g, " ")} evidence`,
+      strength: Math.max(0.4, (answer as ChoiceAnswer).confidence || 0.5),
+    });
+  }
+  return out.slice(0, 3);
 }
 
 /** Map TypeSafe 0–9 score index continuum onto 1–10 display scale. */

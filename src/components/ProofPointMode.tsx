@@ -95,7 +95,8 @@ export function ProofPointMode({ settings }: { settings: AppSettings }) {
         userResponse: combined,
         retrievedResumeChunks: [chunk],
         activePrepDocSignals: null,
-        mode,
+        mode: "proof_point",
+        interviewType: settings.defaultInterviewType ?? "behavioral",
       },
       settings,
     );
@@ -276,6 +277,12 @@ export function ProofPointMode({ settings }: { settings: AppSettings }) {
           said={`${response}\n\n${followAnswer}`.trim()}
           evidence={[chunk]}
           revealed
+          onFollowUp={(q) => {
+            setFollowUp(q);
+            setFollowAnswer("");
+            setPhase("pushback");
+            setCard(null);
+          }}
         />
       )}
     </div>
@@ -285,10 +292,10 @@ export function ProofPointMode({ settings }: { settings: AppSettings }) {
 function buildPushback(chunk: ChunkRecord): string {
   const hint = chunk.heading || chunk.content.split(/\s+/).slice(0, 8).join(" ");
   const prompts = [
-    `What would you have done differently on “${hint}”?`,
-    `How did you measure success for “${hint}”?`,
-    `What was the hardest tradeoff in “${hint}”?`,
-    `Who disagreed with your approach on “${hint}”, and how did you resolve it?`,
+    `What would you have done differently on "${hint}"?`,
+    `How did you measure success for "${hint}"?`,
+    `What was the hardest tradeoff in "${hint}"?`,
+    `Who disagreed with your approach on "${hint}", and how did you resolve it?`,
   ];
   return prompts[Math.floor(Math.random() * prompts.length)];
 }
