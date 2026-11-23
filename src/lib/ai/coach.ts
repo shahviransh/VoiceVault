@@ -114,10 +114,10 @@ async function jevFreeform(system: string, user: string, apiKey: string): Promis
       },
     }),
   });
-  // System One choice isn't ideal for free text — prefer chat-shaped BYOK/local.
+  // System One choice isn't ideal for free text - prefer chat-shaped BYOK/local.
   // If Jev rejects or shape is wrong, throw to fall through.
   if (!res.ok) throw new Error(`Jev ${res.status}`);
-  throw new Error("Jev freeform not suitable — use local/chat provider");
+  throw new Error("Jev freeform not suitable - use local/chat provider");
 }
 
 async function openAiChat(
@@ -264,7 +264,7 @@ export async function generateStarSkeletons(
   try {
     const raw = await localOrCloudChat({
       system,
-      user: evidence || "No chunks — return empty array.",
+      user: evidence || "No chunks - return empty array.",
       settings,
     });
     const parsed = extractJson<StarSkeleton[]>(raw);
@@ -334,7 +334,7 @@ export async function generateFollowUps(
     followUps.push("What would you do differently if you had to ship that again in half the time?");
   }
   if (card.citations?.[0]) {
-    followUps.push("Walk me through your personal ownership on that project — what did only you decide?");
+    followUps.push("Walk me through your personal ownership on that project - what did only you decide?");
   }
   return followUps.slice(0, 2);
 }
@@ -348,7 +348,7 @@ export function buildRetrievalHints(card: CalibratedScorecard, chunks: Retrieved
       hints.push({
         docType: "resume",
         label: "Resume",
-        reason: "Evidence score is thin — ingest a resume with roles, stack, and metrics.",
+        reason: "Evidence score is thin - ingest a resume with roles, stack, and metrics.",
       });
     }
     if (!types.has("project_doc")) {
@@ -372,13 +372,13 @@ export function buildRetrievalHints(card: CalibratedScorecard, chunks: Retrieved
       hints.push({
         docType: "career_ops_prep",
         label: "career-ops prep",
-        reason: "Prep signals were missed — index a company prep Markdown brief.",
+        reason: "Prep signals were missed - index a company prep Markdown brief.",
       });
     } else {
       hints.push({
         docType: "career_ops_prep",
         label: "Prep keywords",
-        reason: "Prep is indexed but keywords weren't hit — rehearse company-signal drill next.",
+        reason: "Prep is indexed but keywords weren't hit - rehearse company-signal drill next.",
       });
     }
   }
@@ -387,7 +387,7 @@ export function buildRetrievalHints(card: CalibratedScorecard, chunks: Retrieved
     hints.push({
       docType: "profile_fact",
       label: "Key metrics",
-      reason: "Vault lacks numeric impact — add key metrics in Profile facts.",
+      reason: "Vault lacks numeric impact - add key metrics in Profile facts.",
     });
   }
 
@@ -475,8 +475,8 @@ export async function summarizeSession(
     };
   } catch {
     return {
-      topGaps: topGaps.length ? topGaps : ["Keep stacking reps — no dominant gap yet."],
-      wins: wins.length ? wins : ["Completed the session — consistency is the win."],
+      topGaps: topGaps.length ? topGaps : ["Keep stacking reps - no dominant gap yet."],
+      wins: wins.length ? wins : ["Completed the session - consistency is the win."],
       practicePlan,
       averageOverall: Math.round(averageOverall * 10) / 10,
       attemptCount: attempts.length,
@@ -491,7 +491,7 @@ export function companySignalPrompts(prep: PrepSignals | null | undefined): stri
   const out: string[] = [];
   for (const kw of prep.target_keywords.slice(0, 4)) {
     out.push(
-      `In 90 seconds, show how your experience connects to "${kw}" for this company — cite a real project.`,
+      `In 90 seconds, show how your experience connects to "${kw}" for this company - cite a real project.`,
     );
   }
   for (const signal of prep.company_signals.slice(0, 3)) {

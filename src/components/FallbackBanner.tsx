@@ -20,7 +20,7 @@ export function FallbackBanner({ chain }: { chain?: FallbackStep[] | null }) {
         <div className="text-sm font-semibold text-ink">
           Scored via {providerLabel(winner.provider)}
           {winner.reason ? (
-            <span className="font-normal text-ink-soft"> — {winner.reason}</span>
+            <span className="font-normal text-ink-soft"> - {winner.reason}</span>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-1 text-[11px] text-ink-faint">

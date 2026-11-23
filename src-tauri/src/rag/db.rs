@@ -241,7 +241,7 @@ impl RagState {
             let ddl = format!(
                 "CREATE VIRTUAL TABLE vec_chunks USING vec0(chunk_id TEXT PRIMARY KEY, embedding float[{EMBEDDING_DIM}])"
             );
-            // Some sqlite-vec builds prefer rowid linkage — fall back to blob-only search if create fails
+            // Some sqlite-vec builds prefer rowid linkage - fall back to blob-only search if create fails
             if let Err(err) = conn.execute(&ddl, []) {
                 log::warn!("vec_chunks create failed ({err}); using blob cosine fallback");
             }

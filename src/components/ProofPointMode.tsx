@@ -58,7 +58,7 @@ export function ProofPointMode({ settings }: { settings: AppSettings }) {
     try {
       const c = isTauri() ? await ragApi.getProofPoint() : await browserRag.getProofPoint();
       if (!c) {
-        setStatus("Vault is empty — ingest documents first.");
+        setStatus("Vault is empty - ingest documents first.");
         return;
       }
       setChunk(c);

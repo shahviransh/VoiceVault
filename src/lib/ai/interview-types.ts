@@ -65,10 +65,10 @@ export function evidenceInstructions(type: InterviewType): string {
 
 export function typeHintBlock(type: InterviewType): string {
   const map: Record<InterviewType, string> = {
-    behavioral: "Interview type: behavioral — expect STAR, ownership, conflict/impact stories.",
-    system_design: "Interview type: system design — expect requirements, components, tradeoffs, failure modes.",
-    product: "Interview type: product — expect users, metrics, prioritization, recommendation.",
-    coding_verbal: "Interview type: coding verbal — expect approach, complexity, edge cases spoken aloud.",
+    behavioral: "Interview type: behavioral - expect STAR, ownership, conflict/impact stories.",
+    system_design: "Interview type: system design - expect requirements, components, tradeoffs, failure modes.",
+    product: "Interview type: product - expect users, metrics, prioritization, recommendation.",
+    coding_verbal: "Interview type: coding verbal - expect approach, complexity, edge cases spoken aloud.",
     general: "Interview type: general mixed interview.",
   };
   return map[type];

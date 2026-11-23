@@ -107,7 +107,7 @@ export function SpeakingStudio({
   useEffect(() => {
     if (bridgeSeed?.prompt) {
       setQuestion(bridgeSeed.prompt);
-      setStatus("Writing → Speaking bridge — retell your draft out loud");
+      setStatus("Writing → Speaking bridge - retell your draft out loud");
     }
   }, [bridgeSeed]);
 
@@ -234,7 +234,7 @@ export function SpeakingStudio({
       await recorder.current.start();
       setStream(recorder.current.getStream());
     } catch {
-      setStatus("Mic unavailable — transcript-only mode");
+      setStatus("Mic unavailable - transcript-only mode");
     }
 
     transcriber.current.start({
@@ -630,7 +630,7 @@ export function SpeakingStudio({
               recording && "caret",
             )}
           >
-            {transcript || (recording ? "" : "Press the mic and start talking — your words appear here.")}
+            {transcript || (recording ? "" : "Press the mic and start talking - your words appear here.")}
           </p>
           {(audioUrl || sessionId) && (
             <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
@@ -660,7 +660,7 @@ export function SpeakingStudio({
           onFollowUp={(q) => {
             setQuestion(q);
             setCard(null);
-            setStatus("Follow-up loaded — press mic when ready");
+            setStatus("Follow-up loaded - press mic when ready");
           }}
         />
       )}

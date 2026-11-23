@@ -39,7 +39,7 @@ export function SessionCoachPanel({
             <ClipboardList className="h-3.5 w-3.5 text-accent" /> Session coach
           </div>
           <p className="mt-1 text-sm text-ink-soft">
-            {attempts.length} attempt{attempts.length === 1 ? "" : "s"} this session — synthesize gaps
+            {attempts.length} attempt{attempts.length === 1 ? "" : "s"} this session - synthesize gaps
             and a next-day plan.
           </p>
         </div>

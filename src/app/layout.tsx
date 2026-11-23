@@ -24,7 +24,7 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "VoiceVault",
   description:
-    "Distraction-free offline interview prep studio — grade your delivery against your own evidence.",
+    "Distraction-free offline interview prep studio - grade your delivery against your own evidence.",
 };
 
 const themeBootScript = `

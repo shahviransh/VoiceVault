@@ -79,7 +79,7 @@ export async function evaluateResponse(
 
       if (provider === "jev") {
         if (settings.strictMindVaultMode) {
-          chain.push({ provider, ok: false, reason: "Strict MindVault — cloud skipped" });
+          chain.push({ provider, ok: false, reason: "Strict MindVault - cloud skipped" });
           continue;
         }
         if (!settings.jevApiKey) {
@@ -227,7 +227,7 @@ async function applyCritiquePolicy(
       ...card,
       critique: undefined,
       critiqueDeferred: true,
-      critiqueDeferredReason: `Critique hidden — average confidence ${(avgConf * 100).toFixed(0)}% below ${(threshold * 100).toFixed(0)}% threshold`,
+      critiqueDeferredReason: `Critique hidden - average confidence ${(avgConf * 100).toFixed(0)}% below ${(threshold * 100).toFixed(0)}% threshold`,
     };
   }
 
@@ -239,7 +239,7 @@ async function applyCritiquePolicy(
       critique: undefined,
       critiqueDeferred: true,
       critiqueDeferredReason:
-        "Strict MindVault — scored locally; coach critique queued for later sync when cloud is allowed",
+        "Strict MindVault - scored locally; coach critique queued for later sync when cloud is allowed",
     };
   }
 
@@ -508,7 +508,7 @@ async function scoreWithLmStudio(
   const model = preferredModel || models[0];
   if (!model) {
     throw new Error(
-      "LM Studio not reachable — start the local server (default http://localhost:1234)",
+      "LM Studio not reachable - start the local server (default http://localhost:1234)",
     );
   }
 

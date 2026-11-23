@@ -23,16 +23,16 @@ import type {
 const SYSTEM_ONE_URL = "https://api.typesafe.ai/v1/systemone";
 
 const SCORE_CRITERIA_1_TO_10 = [
-  "1 — Severely unclear or off-topic",
-  "2 — Very weak",
-  "3 — Weak",
-  "4 — Below average",
-  "5 — Adequate but thin",
-  "6 — Solid with gaps",
-  "7 — Good",
-  "8 — Strong",
-  "9 — Excellent",
-  "10 — Exceptional interview-ready",
+  "1 - Severely unclear or off-topic",
+  "2 - Very weak",
+  "3 - Weak",
+  "4 - Below average",
+  "5 - Adequate but thin",
+  "6 - Solid with gaps",
+  "7 - Good",
+  "8 - Strong",
+  "9 - Excellent",
+  "10 - Exceptional interview-ready",
 ];
 
 type QuestionDef =
@@ -181,7 +181,7 @@ function buildQuestions(input: ScoringInput): Record<string, QuestionDef> {
         ...Object.fromEntries(
           input.retrievedResumeChunks.slice(0, 8).map((c) => [
             c.id,
-            `${c.doc_type}${c.heading ? ` / ${c.heading}` : ""} — ${c.content.slice(0, 80)}`,
+            `${c.doc_type}${c.heading ? ` / ${c.heading}` : ""} - ${c.content.slice(0, 80)}`,
           ]),
         ),
       },

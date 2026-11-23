@@ -157,7 +157,7 @@ export function SettingsModal({
             </label>
           </Section>
 
-          <Section icon={Server} title="Local desktop AI" subtitle="Runs on your machine — works offline">
+          <Section icon={Server} title="Local desktop AI" subtitle="Runs on your machine - works offline">
             <ServerBlock
               name="LM Studio"
               models={lmModels}
@@ -228,7 +228,7 @@ export function SettingsModal({
               >
                 {INTERVIEW_TYPES.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.label} — {t.blurb}
+                    {t.label} - {t.blurb}
                   </option>
                 ))}
               </select>
@@ -253,7 +253,7 @@ export function SettingsModal({
             </label>
           </Section>
 
-          <Section icon={KeyRound} title="Cloud keys" subtitle="Optional — stored locally only">
+          <Section icon={KeyRound} title="Cloud keys" subtitle="Optional - stored locally only">
             <div className="space-y-3">
               {(
                 [

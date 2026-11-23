@@ -1,4 +1,4 @@
-## STAR — Latency cut on checkout API
+## STAR - Latency cut on checkout API
 
 **Situation:** Checkout p95 latency climbed to 900ms during a traffic spike.
 
@@ -8,7 +8,7 @@
 
 **Result:** p95 dropped to 240ms; checkout conversion recovered +2.1% week over week.
 
-## STAR — Cross-team incident ownership
+## STAR - Cross-team incident ownership
 
 **Situation:** A schema migration from another team broke search ranking silently.
 

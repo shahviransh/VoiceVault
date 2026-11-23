@@ -217,8 +217,8 @@ export function KnowledgeVault({
       setStars(drafts);
       setMessage(
         drafts.length
-          ? `Drafted ${drafts.length} STAR skeletons — edit before treating as answers`
-          : "No story-ready chunks found — ingest resume / story bank / projects first",
+          ? `Drafted ${drafts.length} STAR skeletons - edit before treating as answers`
+          : "No story-ready chunks found - ingest resume / story bank / projects first",
       );
     } catch (e) {
       setMessage(String(e));
@@ -239,7 +239,7 @@ export function KnowledgeVault({
       ...prev,
       star_stories: prev.star_stories.trim() ? `${prev.star_stories.trim()}\n\n${block}` : block,
     }));
-    setMessage(`Added "${s.title}" into Profile facts — review, then Save & re-index`);
+    setMessage(`Added "${s.title}" into Profile facts - review, then Save & re-index`);
   };
 
   const maxScore = Math.max(...(result?.chunks.map((c) => c.score ?? 0) ?? [0]), 0.0001);
@@ -250,7 +250,7 @@ export function KnowledgeVault({
         index="01"
         kicker="Knowledge Vault"
         title="Your evidence, indexed"
-        description="Resume, story bank, project docs, and career-ops prep briefs — chunked and embedded locally so every score is grounded in what you've actually done."
+        description="Resume, story bank, project docs, and career-ops prep briefs - chunked and embedded locally so every score is grounded in what you've actually done."
         actions={
           <>
             <span className="chip h-8 px-3">
@@ -362,7 +362,7 @@ export function KnowledgeVault({
               <EmptyState
                 icon={FileText}
                 title="Vault is empty"
-                body="Start with your resume and one career-ops prep brief — that's enough for grounded scoring."
+                body="Start with your resume and one career-ops prep brief - that's enough for grounded scoring."
               />
             )}
           </Card>
@@ -433,7 +433,7 @@ export function KnowledgeVault({
           <CardHeader
             icon={Sparkles}
             title="Story-bank enrichment"
-            subtitle="Draft STAR skeletons from indexed docs — edit them; never memorize AI-final answers"
+            subtitle="Draft STAR skeletons from indexed docs - edit them; never memorize AI-final answers"
             actions={
               <button
                 type="button"
@@ -490,7 +490,7 @@ export function KnowledgeVault({
             </ul>
           ) : (
             <p className="text-sm text-ink-faint">
-              Skeletons stay editable drafts aligned with MindVault — you own the final stories.
+              Skeletons stay editable drafts aligned with MindVault - you own the final stories.
             </p>
           )}
         </Card>

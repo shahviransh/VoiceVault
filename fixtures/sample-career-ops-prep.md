@@ -1,4 +1,4 @@
-# Acme Platform — Interview Prep
+# Acme Platform - Interview Prep
 
 ## Company Signals
 - Ownership of ambiguous problems end-to-end

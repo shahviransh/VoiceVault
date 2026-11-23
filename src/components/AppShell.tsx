@@ -173,7 +173,7 @@ export function AppShell() {
             <StatusRow label="Scoring" value={providerLabel(settings.preferredProvider)} />
             <StatusRow
               label="Embeddings"
-              value={offline?.embedding_backend?.replace("fastembed:", "") ?? "—"}
+              value={offline?.embedding_backend?.replace("fastembed:", "") ?? "-"}
             />
             <StatusRow label="Docs indexed" value={String(documents.length)} />
             {settings.strictMindVaultMode && (

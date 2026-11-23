@@ -6,7 +6,7 @@ VoiceVault pairs with **MindVault** (blocks external AI so you think independent
 
 ## Stack
 
-- **Desktop:** Tauri v2 (Rust) — single binary, no Python sidecars
+- **Desktop:** Tauri v2 (Rust) - single binary, no Python sidecars
 - **Frontend:** Next.js 15 static export + TypeScript + Tailwind + Lucide
 - **RAG:** `rusqlite` (bundled) + `sqlite-vec` + FTS5 hybrid search, `fastembed` (`AllMiniLML6V2`), `pdf-extract`, `pulldown-cmark`
 - **Speech:** Web Speech API + MediaRecorder
@@ -33,10 +33,10 @@ npm run tauri:build
 
 ## Practice modes
 
-1. **Knowledge Vault** — ingest resume / story-bank / career-ops prep / project docs; profile facts; STAR skeleton drafts; retrieval tester
-2. **Speaking Studio** — interview-type rubrics, company-signal drill, personal mock-question generation, mid-answer checkpoints, follow-ups, delta vs last attempt, session coach summary
-3. **Writing Studio** — timed drills with Focus Lock, then **Writing → Speaking bridge** retell
-4. **30-Second Proof-Point** — defend a vault chunk, then answer a pushback prompt
+1. **Knowledge Vault** - ingest resume / story-bank / career-ops prep / project docs; profile facts; STAR skeleton drafts; retrieval tester
+2. **Speaking Studio** - interview-type rubrics, company-signal drill, personal mock-question generation, mid-answer checkpoints, follow-ups, delta vs last attempt, session coach summary
+3. **Writing Studio** - timed drills with Focus Lock, then **Writing → Speaking bridge** retell
+4. **30-Second Proof-Point** - defend a vault chunk, then answer a pushback prompt
 
 ## AI / Jev features
 
@@ -64,7 +64,7 @@ Desktop app data (SQLite + embedding model cache):
 
 `$APP_DATA/voicevault.db` and `$APP_DATA/models/`
 
-## Agent prompt — generate VoiceVault vault files
+## Agent prompt - generate VoiceVault vault files
 
 Paste this into **career-ops**, Cursor, ChatGPT, Claude, or any other agent that can read a resume / LinkedIn / portfolio. It produces Markdown VoiceVault can ingest directly (prep docs are parsed for signals; other docs are chunked on `##` / `###` headings).
 
@@ -75,7 +75,7 @@ and company-specific coaching signals so it can retrieve, grade, and push back.
 
 Given the profile / resume / notes I provide (and optional target company + role),
 output ONLY the Markdown files below. Use real facts from my materials. If a metric
-or detail is missing, write `[add metric]` or `[unknown]` — never invent employers,
+or detail is missing, write `[add metric]` or `[unknown]` - never invent employers,
 titles, or numbers.
 
 Rules:
@@ -85,12 +85,12 @@ Rules:
 - Do not write a full "perfect interview answer" script.
 
 ────────────────────────────────────────
-FILE 1 — career-ops prep (ingest as: career_ops_prep)
+FILE 1 - career-ops prep (ingest as: career_ops_prep)
 Filename: {company-or-role}-prep.md
 
 Exact section headings VoiceVault parses (keep these names):
 
-# {Company} — {Role} Interview Prep
+# {Company} - {Role} Interview Prep
 
 ## Company Signals
 - 4–8 bullets: what this company rewards in interviews (ownership, shipping, etc.)
@@ -107,10 +107,10 @@ Exact section headings VoiceVault parses (keep these names):
 (5–10 questions: mix behavioral + role-specific)
 
 ────────────────────────────────────────
-FILE 2 — story bank (ingest as: story_bank)
+FILE 2 - story bank (ingest as: story_bank)
 Filename: story-bank.md
 
-## STAR — {short title}
+## STAR - {short title}
 **Situation:** …
 **Task:** …
 **Action:** … (my personal actions; clarify "I" vs team)
@@ -120,7 +120,7 @@ Filename: story-bank.md
 technical depth, ambiguity.)
 
 ────────────────────────────────────────
-FILE 3 — project docs (ingest as: project_doc)
+FILE 3 - project docs (ingest as: project_doc)
 Filename: projects.md
 
 ## {Project name}
@@ -134,18 +134,18 @@ Filename: projects.md
 (1–4 projects.)
 
 ────────────────────────────────────────
-FILE 4 — resume evidence notes (ingest as: resume)
+FILE 4 - resume evidence notes (ingest as: resume)
 Filename: resume-notes.md
 
 ## Roles
-### {Title} — {Company} ({dates})
+### {Title} - {Company} ({dates})
 - bullets with stack + impact
 
 ## Skills / stack
 ## Education / misc (optional)
 
 ────────────────────────────────────────
-FILE 5 — profile facts (paste into VoiceVault → Profile facts, or save as profile_facts.md)
+FILE 5 - profile facts (paste into VoiceVault → Profile facts, or save as profile_facts.md)
 Filename: profile-facts.md
 
 ## Target Roles

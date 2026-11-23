@@ -178,7 +178,7 @@ export function Scorecard({
             </div>
             {m.lowConfidence && (
               <div className="chip chip-warn mt-3">
-                <AlertTriangle className="h-3 w-3" /> Low Confidence — Ambiguous Answer
+                <AlertTriangle className="h-3 w-3" /> Low Confidence - Ambiguous Answer
               </div>
             )}
           </div>
@@ -288,7 +288,7 @@ export function Scorecard({
         <div className="card p-5">
           <div className="kicker mb-3">What you said</div>
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
-            {said || <span className="text-ink-faint">—</span>}
+            {said || <span className="text-ink-faint">-</span>}
           </p>
         </div>
         <div className="card p-5">

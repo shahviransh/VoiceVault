@@ -83,7 +83,7 @@ export function WritingStudio({
   useEffect(() => {
     if (remaining === null) return;
     if (remaining <= 0) {
-      setStatus("Time's up — score what you have.");
+      setStatus("Time's up - score what you have.");
       return;
     }
     const id = window.setTimeout(() => setRemaining((r) => (r === null ? null : r - 1)), 1000);
@@ -107,7 +107,7 @@ export function WritingStudio({
     setCard(null);
     setSessionId(null);
     setRemaining(seconds);
-    setStatus("Focus Lock on — draft from memory");
+    setStatus("Focus Lock on - draft from memory");
   };
 
   const reset = () => {

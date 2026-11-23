@@ -12,7 +12,7 @@ export async function probeProviderHealth(settings: AppSettings): Promise<Provid
         return row("jev", "warn", "API key not set");
       }
       if (settings.strictMindVaultMode) {
-        return row("jev", "skip", "Strict mode — cloud scoring deferred");
+        return row("jev", "skip", "Strict mode - cloud scoring deferred");
       }
       try {
         const res = await fetch("https://api.typesafe.ai/v1/systemone", {
